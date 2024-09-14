@@ -38,17 +38,6 @@ class Core(commands.Cog):
 
     @commands.command()
     @commands.is_owner()
-    async def reloadtesttree(self, ctx: commands.Context):
-        """
-        Sync the application commands with Discord on a test server
-        """
-        guild = discord.Object(id=1283432547149287455)
-        self.bot.tree.copy_global_to(guild=guild)
-        await self.bot.tree.sync(guild=guild)
-        await ctx.send("Application commands tree reloaded on test server.")
-
-    @commands.command()
-    @commands.is_owner()
     async def reload(self, ctx: commands.Context, package: str):
         """
         Reload an extension

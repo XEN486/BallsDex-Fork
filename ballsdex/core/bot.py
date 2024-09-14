@@ -305,9 +305,7 @@ class BallsDexBot(commands.AutoShardedBot):
         else:
             log.info("No package loaded.")
 
-        guild = discord.Object(id=1283432547149287455)
-        self.tree.copy_global_to(guild=guild)
-        synced_commands = await self.tree.sync(guild=guild)
+        synced_commands = await self.tree.sync()
         grammar = "" if synced_commands == 1 else "s"
         if synced_commands:
             log.info(f"Synced {len(synced_commands)} command{grammar}.")
