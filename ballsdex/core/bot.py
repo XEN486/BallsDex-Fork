@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.core.bot")
 http_counter = Histogram("discord_http_requests", "HTTP requests", ["key", "code"])
 
-PACKAGES = ["config", "players", "countryballs", "info", "admin", "trade", "balls"]
+PACKAGES = ["config", "players", "countryballs", "info", "admin", "trade", "balls", "battle"]
 
 
 def owner_check(ctx: commands.Context[BallsDexBot]):
@@ -305,7 +305,9 @@ class BallsDexBot(commands.AutoShardedBot):
         else:
             log.info("No package loaded.")
 
-        synced_commands = await self.tree.sync()
+        guild = discord.Object(id=1283432547149287455)
+        self.tree.copy_global_to(guild=guild)
+        synced_commands = await self.tree.sync(guild=guild)
         grammar = "" if synced_commands == 1 else "s"
         if synced_commands:
             log.info(f"Synced {len(synced_commands)} command{grammar}.")

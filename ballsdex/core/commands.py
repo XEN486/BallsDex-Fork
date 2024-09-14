@@ -2,6 +2,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+import discord
 from discord.ext import commands
 from tortoise import Tortoise
 
@@ -34,6 +35,17 @@ class Core(commands.Cog):
         """
         await self.bot.tree.sync()
         await ctx.send("Application commands tree reloaded.")
+
+    @commands.command()
+    @commands.is_owner()
+    async def reloadtesttree(self, ctx: commands.Context):
+        """
+        Sync the application commands with Discord on a test server
+        """
+        guild = discord.Object(id=1283432547149287455)
+        self.bot.tree.copy_global_to(guild=guild)
+        await self.bot.tree.sync(guild=guild)
+        await ctx.send("Application commands tree reloaded on test server.")
 
     @commands.command()
     @commands.is_owner()
