@@ -12,7 +12,7 @@ from ballsdex.packages.countryballs.countryball import CountryBall
 
 log = logging.getLogger("ballsdex.packages.countryballs")
 
-SPAWN_CHANCE_RANGE = (40, 55)
+SPAWN_CHANCE_RANGE = (15, 30)
 
 CachedMessage = namedtuple("CachedMessage", ["content", "author_id"])
 
