@@ -9,7 +9,7 @@ x-common-env-vars:
 services:
 
   bot:
-    restart: "always"
+    restart: "unless-stopped"
     image: ballsdex
     build: .
     environment:
