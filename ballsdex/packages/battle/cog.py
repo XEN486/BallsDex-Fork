@@ -249,6 +249,8 @@ class Battle(commands.GroupCog):
             view=view,
         )
 
+        self.interactions[interaction.guild_id] = interaction
+
     @app_commands.command()
     async def add(
         self, interaction: discord.Interaction, countryball: BallInstanceTransform
