@@ -2,7 +2,6 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-import discord
 from discord.ext import commands
 from tortoise import Tortoise
 

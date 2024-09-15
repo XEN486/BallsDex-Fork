@@ -8,13 +8,14 @@ class BattleBall:
     owner: str
     health: int
     attack: int
+    emoji: str = ""
     dead: bool = False
 
 
 @dataclass
 class BattleInstance:
-    p1_balls: list = field(default_factory=lambda: [])
-    p2_balls: list = field(default_factory=lambda: [])
+    p1_balls: list = field(default_factory=list)
+    p2_balls: list = field(default_factory=list)
     winner: str = ""
 
 

@@ -8,6 +8,7 @@ import time
 import types
 from datetime import datetime
 from typing import TYPE_CHECKING, cast
+from pathlib import Path
 
 import aiohttp
 import discord
@@ -46,8 +47,8 @@ if TYPE_CHECKING:
 log = logging.getLogger("ballsdex.core.bot")
 http_counter = Histogram("discord_http_requests", "HTTP requests", ["key", "code"])
 
-PACKAGES = ["config", "players", "countryballs", "info", "admin", "trade", "balls", "battle"]
-
+#PACKAGES = ["config", "players", "countryballs", "info", "admin", "trade", "balls", "battle"]
+PACKAGES = [f.name for f in (Path(__file__).resolve().parent.parent / 'packages').iterdir()]
 
 def owner_check(ctx: commands.Context[BallsDexBot]):
     return ctx.bot.is_owner(ctx.author)
