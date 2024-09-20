@@ -19,12 +19,15 @@ class BattleInstance:
     winner: str = ""
     turns: int = 0
 
-
 def attack(current_ball, enemy_balls):
     alive_balls = [ball for ball in enemy_balls if not ball.dead]
     enemy = random.choice(alive_balls)
 
     attack_dealt = int(current_ball.attack * random.uniform(0.5, 1.5))
+    if random.randint(0,100) <= 30:
+        gen_text = f"{enemy.owner}'s {enemy.name} has dodged the attack of {current_ball.owner}'s {current_ball.name}"
+        return gen_text
+    
     enemy.health -= attack_dealt
 
     if enemy.health <= 0:

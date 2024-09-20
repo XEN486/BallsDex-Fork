@@ -48,17 +48,19 @@ def gen_deck(balls) -> str:
     )
 
 
-def update_embed(author_balls, opponent_balls, author, opponent) -> discord.Embed:
+def update_embed(author_balls, opponent_balls, author, opponent, author_ready, opponent_ready) -> discord.Embed:
     """Creates an embed for the battle setup phase."""
     embed = discord.Embed(
         title="Countryballs Battle Plan",
         description="Add or remove countryballs you want to propose to the other player using the '/battle add' and '/battle remove' commands. Once you've finished, click the tick button to start the battle.",
         color=discord.Colour.blurple(),
     )
-    embed.add_field(name=f"{author}'s deck:", value=gen_deck(author_balls), inline=True)
-    embed.add_field(
-        name=f"{opponent}'s deck:", value=gen_deck(opponent_balls), inline=True
-    )
+    
+    author_emoji = ":white_check_mark:" if author_ready else ""
+    opponent_emoji = ":white_check_mark:" if opponent_ready else ""
+
+    embed.add_field(name=f"{author_emoji} {author}'s deck:", value=gen_deck(author_balls), inline=True)
+    embed.add_field(name=f"{opponent_emoji} {opponent}'s deck:", value=gen_deck(opponent_balls), inline=True)
     return embed
 
 
@@ -88,7 +90,6 @@ class Battle(commands.GroupCog):
 
     async def start_battle(self, interaction: discord.Interaction):
         guild_battle = self.battles.get(interaction.guild_id)
-
         if not guild_battle or interaction.user not in (
             guild_battle.author,
             guild_battle.opponent,
@@ -225,7 +226,7 @@ class Battle(commands.GroupCog):
         self.battles[interaction.guild_id] = GuildBattle(
             author=interaction.user, opponent=opponent
         )
-        embed = update_embed([], [], interaction.user.name, opponent.name)
+        embed = update_embed([], [], interaction.user.name, opponent.name, False, False)
 
         start_button = discord.ui.Button(
             style=discord.ButtonStyle.success, emoji="✔", label="Start!"
@@ -330,6 +331,8 @@ class Battle(commands.GroupCog):
                 guild_battle.battle.p2_balls,
                 guild_battle.author.name,
                 guild_battle.opponent.name,
+                guild_battle.author_ready,
+                guild_battle.opponent_ready
             )
         )
 
@@ -401,6 +404,8 @@ class Battle(commands.GroupCog):
                     guild_battle.battle.p2_balls,
                     guild_battle.author.name,
                     guild_battle.opponent.name,
+                    guild_battle.author_ready,
+                    guild_battle.opponent_ready
                 )
             )
         else:
