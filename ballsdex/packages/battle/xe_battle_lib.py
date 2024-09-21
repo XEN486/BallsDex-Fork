@@ -19,15 +19,16 @@ class BattleInstance:
     winner: str = ""
     turns: int = 0
 
+
+def get_damage(ball):
+    return int(ball.attack * random.uniform(0.8, 1.2))
+
+
 def attack(current_ball, enemy_balls):
     alive_balls = [ball for ball in enemy_balls if not ball.dead]
     enemy = random.choice(alive_balls)
 
-    attack_dealt = int(current_ball.attack * random.uniform(0.5, 1.5))
-    if random.randint(0,100) <= 30:
-        gen_text = f"{enemy.owner}'s {enemy.name} has dodged the attack of {current_ball.owner}'s {current_ball.name}"
-        return gen_text
-    
+    attack_dealt = get_damage(current_ball)
     enemy.health -= attack_dealt
 
     if enemy.health <= 0:
@@ -38,6 +39,16 @@ def attack(current_ball, enemy_balls):
     else:
         gen_text = f"{current_ball.owner}'s {current_ball.name} has dealt {attack_dealt} damage to {enemy.owner}'s {enemy.name}"
     return gen_text
+
+
+def random_events(p1_ball, p2_ball):
+    if random.randint(0, 100) <= 30:
+        return (
+            True,
+            f"{p1_ball.owner}'s {p1_ball.name} has dodged the attack of {p2_ball.owner}'s {p2_ball.name}",
+        )
+    else:
+        return False, ""
 
 
 def gen_battle(battle: BattleInstance):
@@ -56,14 +67,24 @@ def gen_battle(battle: BattleInstance):
 
             if not p1_ball.dead:
                 turn += 1
+
+                event = random_events(p1_ball, p2_ball)
+                if event[0]:
+                    yield f"Turn {turn}: {p2_ball.owner}'s {p2_ball.name} missed dealing {get_damage(p2_ball)} damage to {p1_ball.owner}'s {p1_ball.name}"
+                    turn += 1
+                    yield f"Turn {turn}: {event[1]}"
+                    continue
                 yield f"Turn {turn}: {attack(p1_ball, battle.p2_balls)}"
+
                 if all(ball.dead for ball in battle.p2_balls):
                     break
             # Player 2 attacks
 
             if not p2_ball.dead:
                 turn += 1
+
                 yield f"Turn {turn}: {attack(p2_ball, battle.p1_balls)}"
+
                 if all(ball.dead for ball in battle.p1_balls):
                     break
     # Determine the winner
@@ -79,6 +100,7 @@ def gen_battle(battle: BattleInstance):
 
 # test
 
+
 if __name__ == "__main__":
     battle = BattleInstance(
         [
@@ -93,6 +115,9 @@ if __name__ == "__main__":
         ],
     )
 
+    print(
+        f"Battle between {battle.p1_balls[0].owner} and {battle.p2_balls[0].owner} begins! - {battle.p1_balls[0].owner} begins"
+    )
     for attack_text in gen_battle(battle):
         print(attack_text)
     print(f"Winner:\n{battle.winner} - Turn: {battle.turns}")

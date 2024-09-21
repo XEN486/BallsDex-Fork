@@ -48,19 +48,29 @@ def gen_deck(balls) -> str:
     )
 
 
-def update_embed(author_balls, opponent_balls, author, opponent, author_ready, opponent_ready) -> discord.Embed:
+def update_embed(
+    author_balls, opponent_balls, author, opponent, author_ready, opponent_ready
+) -> discord.Embed:
     """Creates an embed for the battle setup phase."""
     embed = discord.Embed(
         title="Countryballs Battle Plan",
         description="Add or remove countryballs you want to propose to the other player using the '/battle add' and '/battle remove' commands. Once you've finished, click the tick button to start the battle.",
         color=discord.Colour.blurple(),
     )
-    
+
     author_emoji = ":white_check_mark:" if author_ready else ""
     opponent_emoji = ":white_check_mark:" if opponent_ready else ""
 
-    embed.add_field(name=f"{author_emoji} {author}'s deck:", value=gen_deck(author_balls), inline=True)
-    embed.add_field(name=f"{opponent_emoji} {opponent}'s deck:", value=gen_deck(opponent_balls), inline=True)
+    embed.add_field(
+        name=f"{author_emoji} {author}'s deck:",
+        value=gen_deck(author_balls),
+        inline=True,
+    )
+    embed.add_field(
+        name=f"{opponent_emoji} {opponent}'s deck:",
+        value=gen_deck(opponent_balls),
+        inline=True,
+    )
     return embed
 
 
@@ -69,7 +79,7 @@ def create_disabled_buttons() -> discord.ui.View:
     view = discord.ui.View()
     view.add_item(
         discord.ui.Button(
-            style=discord.ButtonStyle.success, emoji="✔", label="Start!", disabled=True
+            style=discord.ButtonStyle.success, emoji="✔", label="Ready", disabled=True
         )
     )
     view.add_item(
@@ -77,6 +87,7 @@ def create_disabled_buttons() -> discord.ui.View:
             style=discord.ButtonStyle.danger, emoji="✖", label="Cancel", disabled=True
         )
     )
+
 
 class Battle(commands.GroupCog):
     """
@@ -143,7 +154,7 @@ class Battle(commands.GroupCog):
                 embed=embed,
                 view=new_view,
                 attachments=[
-                    discord.File(io.StringIO(battle_log), filename="battle.log")
+                    discord.File(io.StringIO(battle_log), filename="battle-log.txt")
                 ],
             )
             self.battles[interaction.guild_id] = None
@@ -151,7 +162,7 @@ class Battle(commands.GroupCog):
             # One player is ready, waiting for the other player
 
             await interaction.response.send_message(
-                f"Done! Waiting for the other player to press 'Start'.", ephemeral=True
+                f"Done! Waiting for the other player to press 'Ready'.", ephemeral=True
             )
 
             author_emoji = (
@@ -208,10 +219,9 @@ class Battle(commands.GroupCog):
                 await interaction.response.defer()
             except discord.errors.InteractionResponded:
                 pass
-            
             await interaction.message.edit(embed=embed, view=create_disabled_buttons())
             self.battles[interaction.guild_id] = None
-    
+
     @app_commands.command()
     async def start(self, interaction: discord.Interaction, opponent: discord.Member):
         """
@@ -229,7 +239,7 @@ class Battle(commands.GroupCog):
         embed = update_embed([], [], interaction.user.name, opponent.name, False, False)
 
         start_button = discord.ui.Button(
-            style=discord.ButtonStyle.success, emoji="✔", label="Start!"
+            style=discord.ButtonStyle.success, emoji="✔", label="Ready"
         )
         cancel_button = discord.ui.Button(
             style=discord.ButtonStyle.danger, emoji="✖", label="Cancel"
@@ -288,12 +298,6 @@ class Battle(commands.GroupCog):
             if interaction.user == guild_battle.author
             else guild_battle.battle.p2_balls
         )
-
-        if len(user_balls) >= 3:
-            await interaction.response.send_message(
-                "You can only have 3 countryballs in a battle!", ephemeral=True
-            )
-            return
         # Create the BattleBall instance
 
         ball = BattleBall(
@@ -332,7 +336,7 @@ class Battle(commands.GroupCog):
                 guild_battle.author.name,
                 guild_battle.opponent.name,
                 guild_battle.author_ready,
-                guild_battle.opponent_ready
+                guild_battle.opponent_ready,
             )
         )
 
@@ -405,7 +409,7 @@ class Battle(commands.GroupCog):
                     guild_battle.author.name,
                     guild_battle.opponent.name,
                     guild_battle.author_ready,
-                    guild_battle.opponent_ready
+                    guild_battle.opponent_ready,
                 )
             )
         else:
