@@ -13,12 +13,13 @@ log = logging.getLogger("ballsdex.packages.countryballs")
 
 
 class CountryBall:
-    def __init__(self, model: Ball):
+    def __init__(self, model: Ball, force_shiny: bool = False):
         self.name = model.country
         self.model = model
         self.message: discord.Message = discord.utils.MISSING
         self.catched = False
         self.time = datetime.now()
+        self.force_shiny = force_shiny
 
     @classmethod
     async def get_random(cls):

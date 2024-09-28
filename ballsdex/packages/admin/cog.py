@@ -478,6 +478,7 @@ class Admin(commands.GroupCog):
         countryball: BallTransform | None = None,
         channel: discord.TextChannel | None = None,
         n: int = 1,
+        shiny: bool = False,
     ):
         """
         Force spawn a random or specified countryball.
@@ -526,6 +527,8 @@ class Admin(commands.GroupCog):
             ball = await CountryBall.get_random()
         else:
             ball = CountryBall(countryball)
+
+        ball.force_shiny = shiny
         result = await ball.spawn(channel or interaction.channel)  # type: ignore
 
         if result:
