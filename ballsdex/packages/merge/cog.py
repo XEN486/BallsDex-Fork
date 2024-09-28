@@ -8,11 +8,16 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from PIL import Image
+
 import asyncio
 import io
 import re
+import os
+import copy
 
 from ballsdex.core.models import Ball
+from ballsdex.core.models import BallInstance
 from ballsdex.core.models import balls as countryballs
 from ballsdex.settings import settings
 
@@ -41,68 +46,60 @@ def gen_name(name1, name2):
     else:
         return name1 + name2[len(name1):]
 
-def gen_ability_name(ability1, ability2):
-    half1 = len(ability1) // 2
-    half2 = len(ability2) // 2
+def gen_text(source, state_size, min_length):
+    # build markov chain
+    source = source.split()
+    model = {}
+    for i in range(state_size, len(source)):
+        current_word = source[i]
+        previous_words = ' '.join(source[i-state_size:i])
+        if previous_words in model:
+            model[previous_words].append(current_word)
+        else:
+            model[previous_words] = [current_word]
 
-    return ability1[:half1]+ ability2[half2:]
+    # generate text
+    text = random.choice([s.split(' ') for s in model.keys() if s[0].isupper()])
 
-def extract_components(ability: str):
-    # Extract named countries/entities
-    countries = re.findall(r'[A-Z][a-z]+', ability)
+    i = state_size
+    while True:
+        key = ' '.join(text[i-state_size:i])
+        if key not in model:
+            text += random.choice([s.split(' ') for s in model.keys() if s[0].isupper()])
+            i += 1
+            continue
+
+        next_word = random.choice(model[key])
+        text.append(next_word)
+        i += 1
+        if i > min_length and text[-1][-1] in ['.', '!']:
+            break
+
+    return ' '.join(text)
+
+# this is a really bad solution for something I cant figure out
+@dataclass
+class FakeBall:
+    short_name: str
+    capacity_name: str
+    capacity_description: str
+    collection_card: str
+    credits: str
+
+    cached_regime: ...
+    cached_economy: ...
     
-    effects = ['damage', 'change', 'boost', 'reflect', 'disable', 'shift', 'modify']
-    conditions = ['if', 'while', 'when', 'until', 'and']
-    actions = ['can change', 'takes', 'deals', 'modifies', 'limits', 'affects']
+@dataclass
+class FakeBallInstance:
+    shiny: bool
+    special_card: ...
 
-    ability_effects = [effect for effect in effects if effect in ability]
-    ability_actions = [action for action in actions if action in ability]
-    condition_phrases = re.findall(r'(if|while|when|until).*', ability, re.IGNORECASE)
-
-    return {
-        'countries': countries,
-        'effects': ability_effects,
-        'actions': ability_actions,
-        'conditions': condition_phrases
-    }
-
-def gen_ability_desc(ability1: str, ability2: str) -> str:
-    components1 = extract_components(ability1)
-    components2 = extract_components(ability2)
-
-    combined_countries = random.sample(
-        components1['countries'] + components2['countries'],
-        min(2, len(components1['countries'] + components2['countries']))
-    )
+    health: int
+    attack: int
     
-    combined_effect = random.choice(components1['effects'] + components2['effects']) if components1['effects'] + components2['effects'] else 'damage'
-    combined_action = random.choice(components1['actions'] + components2['actions']) if components1['actions'] + components2['actions'] else 'affects'
+    countryball: FakeBall
 
-    if components1['conditions'] and components2['conditions']:
-        combined_condition = random.choice(components1['conditions']) + " and " + random.choice(components2['conditions'])
-    elif components1['conditions']:
-        combined_condition = random.choice(components1['conditions'])
-    elif components2['conditions']:
-        combined_condition = random.choice(components2['conditions'])
-    else:
-        combined_condition = "under specific conditions"
-
-    if len(combined_countries) == 2:
-        new_ability = (
-            f"If {combined_countries[0]} is in play and {combined_countries[1]} is not, "
-            f"then {combined_action} will {combined_effect} all targets, "
-            f"{combined_condition}."
-        )
-    else:
-        new_ability = (
-            f"When {combined_countries[0]} is involved, "
-            f"{combined_action} will {combined_effect} the opponent, "
-            f"{combined_condition}."
-        )
-
-    return new_ability
-
-class Merge(commands.GroupCog):
+class Merge(commands.Cog):
     """
     Merge multiple countryballs!
     """
@@ -116,24 +113,58 @@ class Merge(commands.GroupCog):
         Merge two countryballs together.
         """
 
+        await interaction.response.defer()
+
         name = gen_name(ball1.countryball.short_name, ball2.countryball.short_name)
         health = (ball1.countryball.health + ball2.countryball.health) // 2
         attack = (ball1.countryball.attack + ball2.countryball.attack) // 2
         economy = ball1.countryball.economy
-        ability = gen_ability_name(ball1.countryball.capacity_name, ball2.countryball.capacity_name)
-        desc = gen_ability_desc(ball1.countryball.capacity_description, ball2.countryball.capacity_description)
+        ability = gen_text(ball1.countryball.capacity_name + '. ' + ball2.countryball.capacity_name, 1, 3)
+        desc = gen_text(ball1.countryball.capacity_description + '. ' + ball2.countryball.capacity_description, 1, 7)
 
-        newball = ball1
-        newball.countryball.short_name = name
-        newball.countryball.health = health
-        newball.countryball.attack = attack
-        newball.countryball.capacity_name = ability
-        newball.countryball.capacity_description = desc
+        collection1 = Image.open(os.getcwd() + ball1.countryball.collection_card).resize((1366, 768))
+        collection2 = Image.open(os.getcwd() + ball2.countryball.collection_card).resize((1366, 768))
 
-        card = draw_card(newball)
+        left = collection1.crop((0, 0, 683, 768))
+        right = collection2.crop((683, 0, 1366, 768))
 
-        with io.BytesIO() as image_binary:
-            card.save(image_binary, 'PNG')
-            image_binary.seek(0)
-            await interaction.response.send_message(file=discord.File(image_binary, filename='card.png'))
+        collection = Image.new('RGB', (1366, 768))
+        collection.paste(left, (0,0))
+        collection.paste(right, (683, 0))
+        
+        collection.save(os.getcwd() + ball1.countryball.collection_card + '-merge.png')
+        ball_instance = FakeBallInstance(
+            shiny=ball1.shiny or ball2.shiny,
+            special_card=ball1.special_card if ball1.special_card else ball2.special_card,
+
+            health=health,
+            attack=attack,
+
+            countryball=FakeBall(
+                short_name=name,
+                capacity_name=ability,
+                capacity_description=desc,
+                credits=ball1.countryball.credits + ', ' + ball2.countryball.credits,
+                
+                collection_card=ball1.countryball.collection_card + '-merge.png',
+                
+                cached_regime=ball1.countryball.cached_regime,
+                cached_economy=ball2.countryball.cached_economy,
+            )
+        )
+        
+        image = draw_card(ball_instance)
+        buffer = io.BytesIO()
+        image.save(buffer, format="png")
+        buffer.seek(0)
+        image.close()
+
+        os.remove(os.getcwd() + ball1.countryball.collection_card + '-merge.png')
+
+        await interaction.followup.send(
+            file=discord.File(
+                buffer,
+                filename='card.png'
+            )
+        )
         
