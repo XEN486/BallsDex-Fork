@@ -423,6 +423,7 @@ class Admin(commands.GroupCog):
         countryball: Ball | None,
         channel: discord.TextChannel,
         n: int,
+        shiny: bool,
     ):
         spawned = 0
 
@@ -450,6 +451,7 @@ class Admin(commands.GroupCog):
                     ball = await CountryBall.get_random()
                 else:
                     ball = CountryBall(countryball)
+                ball.force_shiny = shiny
                 result = await ball.spawn(channel)
                 if not result:
                     task.cancel()
@@ -512,7 +514,7 @@ class Admin(commands.GroupCog):
 
         if n > 1:
             await self._spawn_bomb(
-                interaction, countryball, channel or interaction.channel, n  # type: ignore
+                interaction, countryball, channel or interaction.channel, n, shiny  # type: ignore
             )
             await log_action(
                 f"{interaction.user} spawned {settings.collectible_name}"
