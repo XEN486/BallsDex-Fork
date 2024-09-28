@@ -11,11 +11,19 @@ from discord.ext import commands
 import asyncio
 import io
 
-from ballsdex.core.models import Ball
+from ballsdex.core.models import (
+    Ball,
+    BallInstance,
+    Player
+)
 from ballsdex.core.models import balls as countryballs
 from ballsdex.settings import settings
 
-from ballsdex.core.utils.transformers import BallInstanceTransform
+from ballsdex.core.utils.transformers import (
+    BallInstanceTransform,
+    BallTransform
+)
+
 from ballsdex.packages.battle.xe_battle_lib import (
     BattleBall,
     BattleInstance,
@@ -40,12 +48,14 @@ def gen_deck(balls) -> str:
     """Generates a text representation of the player's deck."""
     if not balls:
         return "Empty"
-    return "\n".join(
+    deck = "\n".join(
         [
             f"- {ball.emoji} {ball.name} (HP: {ball.health} | DMG: {ball.attack})"
             for ball in balls
         ]
     )
+    if len(deck) > 1024:
+        return deck[0:951] + '\n<truncated due to discord limits, the rest of your balls are still here>'
 
 
 def update_embed(
@@ -98,6 +108,10 @@ class Battle(commands.GroupCog):
         self.bot = bot
         self.battles: Dict[int, GuildBattle] = {}
         self.interactions: Dict[int, discord.Interaction] = {}
+
+    bulk = app_commands.Group(
+        name='bulk', description='Bulk commands for battle'
+    )
 
     async def start_battle(self, interaction: discord.Interaction):
         guild_battle = self.battles.get(interaction.guild_id)
@@ -205,12 +219,12 @@ class Battle(commands.GroupCog):
                 color=discord.Color.red(),
             )
             embed.add_field(
-                name=f"{guild_battle.author}'s deck:",
+                name=f":no_entry_sign: {guild_battle.author}'s deck:",
                 value=gen_deck(guild_battle.battle.p1_balls),
                 inline=True,
             )
             embed.add_field(
-                name=f"{guild_battle.opponent}'s deck:",
+                name=f":no_entry_sign: {guild_battle.opponent}'s deck:",
                 value=gen_deck(guild_battle.battle.p2_balls),
                 inline=True,
             )
@@ -262,18 +276,9 @@ class Battle(commands.GroupCog):
 
         self.interactions[interaction.guild_id] = interaction
 
-    @app_commands.command()
-    async def add(
-        self, interaction: discord.Interaction, countryball: BallInstanceTransform
-    ):
-        """
-        Add a countryball to a battle.
-        """
+    async def add_balls(self, interaction: discord.Interaction, countryballs):
         guild_battle = self.battles.get(interaction.guild_id)
         if not guild_battle:
-            await interaction.response.send_message(
-                "There is no ongoing battle in this server!", ephemeral=True
-            )
             return
         # Check if the user is already ready
 
@@ -300,32 +305,23 @@ class Battle(commands.GroupCog):
         )
         # Create the BattleBall instance
 
-        ball = BattleBall(
-            countryball.countryball.country,
-            interaction.user.name,
-            countryball.health,
-            countryball.attack,
-            self.bot.get_emoji(countryball.countryball.emoji_id),
-        )
-
-        # Check if ball has already been added
-
-        if ball in user_balls:
-            await interaction.response.send_message(
-                "You cannot add the same ball twice!", ephemeral=True
+        for countryball in countryballs:
+            ball = BattleBall(
+                countryball.countryball.country,
+                interaction.user.name,
+                countryball.health,
+                countryball.attack,
+                self.bot.get_emoji(countryball.countryball.emoji_id),
             )
-            return
-        user_balls.append(ball)
 
-        # Construct the message
+            # Check if ball has already been added
 
-        attack_sign = "+" if countryball.attack_bonus >= 0 else ""
-        health_sign = "+" if countryball.health_bonus >= 0 else ""
-
-        await interaction.response.send_message(
-            f"Added `#{countryball.id} {countryball.countryball.country} ({attack_sign}{countryball.attack_bonus}%/{health_sign}{countryball.health_bonus}%)`!",
-            ephemeral=True,
-        )
+            if ball in user_balls:
+                yield True
+                continue
+            
+            user_balls.append(ball)
+            yield False
 
         # Update the battle embed for both players
 
@@ -340,18 +336,9 @@ class Battle(commands.GroupCog):
             )
         )
 
-    @app_commands.command()
-    async def remove(
-        self, interaction: discord.Interaction, countryball: BallInstanceTransform
-    ):
-        """
-        Remove a countryball from battle.
-        """
+    async def remove_balls(self, interaction: discord.Interaction, countryballs):
         guild_battle = self.battles.get(interaction.guild_id)
         if not guild_battle:
-            await interaction.response.send_message(
-                "There is no ongoing battle in this server!", ephemeral=True
-            )
             return
         # Check if the user is already ready
 
@@ -376,43 +363,162 @@ class Battle(commands.GroupCog):
             if interaction.user == guild_battle.author
             else guild_battle.battle.p2_balls
         )
+        # Create the BattleBall instance
 
-        # Create the BattleBall instance for comparison
+        for countryball in countryballs:
+            ball = BattleBall(
+                countryball.countryball.country,
+                interaction.user.name,
+                countryball.health,
+                countryball.attack,
+                self.bot.get_emoji(countryball.countryball.emoji_id),
+            )
 
-        ball_to_remove = BattleBall(
-            countryball.countryball.country,
-            interaction.user.name,
-            countryball.health,
-            countryball.attack,
-            self.bot.get_emoji(countryball.countryball.emoji_id),
+            # Check if ball has already been added
+
+            if ball not in user_balls:
+                yield True
+                continue
+            
+            user_balls.remove(ball)
+            yield False
+
+        # Update the battle embed for both players
+
+        await self.interactions[interaction.guild_id].edit_original_response(
+            embed=update_embed(
+                guild_battle.battle.p1_balls,
+                guild_battle.battle.p2_balls,
+                guild_battle.author.name,
+                guild_battle.opponent.name,
+                guild_battle.author_ready,
+                guild_battle.opponent_ready,
+            )
         )
 
-        if ball_to_remove in user_balls:
-            user_balls.remove(ball_to_remove)
-
-            # Construct the message
-
-            attack_sign = "+" if countryball.attack_bonus >= 0 else ""
-            health_sign = "+" if countryball.health_bonus >= 0 else ""
-
-            await interaction.response.send_message(
-                f"Removed `#{countryball.id} {countryball.countryball.country} ({attack_sign}{countryball.attack_bonus}%/{health_sign}{countryball.health_bonus}%)`!",
-                ephemeral=True,
-            )
-
-            # Update the battle embed for both players
-
-            await self.interactions[interaction.guild_id].edit_original_response(
-                embed=update_embed(
-                    guild_battle.battle.p1_balls,
-                    guild_battle.battle.p2_balls,
-                    guild_battle.author.name,
-                    guild_battle.opponent.name,
-                    guild_battle.author_ready,
-                    guild_battle.opponent_ready,
+    @app_commands.command()
+    async def add(
+        self, interaction: discord.Interaction, countryball: BallInstanceTransform
+    ):
+        """
+        Add a countryball to a battle.
+        """
+        
+        async for dupe in self.add_balls(interaction, [countryball]):
+            if dupe:
+                await interaction.response.send_message(
+                    "You cannot add the same ball twice!", ephemeral=True
                 )
-            )
-        else:
-            await interaction.response.send_message(
-                f"That countryball is not in your battle deck!", ephemeral=True
-            )
+                return
+
+        # Construct the message
+        attack_sign = "+" if countryball.attack_bonus >= 0 else ""
+        health_sign = "+" if countryball.health_bonus >= 0 else ""
+
+        await interaction.response.send_message(
+            f"Added `#{countryball.id} {countryball.countryball.country} ({attack_sign}{countryball.attack_bonus}%/{health_sign}{countryball.health_bonus}%)`!",
+            ephemeral=True,
+        )
+
+    @app_commands.command()
+    async def remove(
+        self, interaction: discord.Interaction, countryball: BallInstanceTransform
+    ):
+        """
+        Remove a countryball from battle.
+        """
+
+        async for not_in_battle in self.remove_balls(interaction, [countryball]):
+            if not_in_battle:
+                await interaction.response.send_message(
+                    "You cannot remove a ball that is not in your deck!", ephemeral=True
+                )
+                return
+
+        attack_sign = "+" if countryball.attack_bonus >= 0 else ""
+        health_sign = "+" if countryball.health_bonus >= 0 else ""
+
+        await interaction.response.send_message(
+            f"Removed `#{countryball.id} {countryball.countryball.country} ({attack_sign}{countryball.attack_bonus}%/{health_sign}{countryball.health_bonus}%)`!",
+            ephemeral=True,
+        )
+    
+    @bulk.command(name='add')
+    async def bulk_add(
+        self, interaction: discord.Interaction, countryball: BallTransform
+    ):
+        """
+        Add countryballs to a battle in bulk.
+        """
+        player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+        balls = await countryball.ballinstances.filter(player=player)
+
+        count = 0
+        async for dupe in self.add_balls(interaction, balls):
+            if not dupe:
+                count += 1
+
+        await interaction.response.send_message(
+            f'Added {count} {countryball.country}{"s" if count != 1 else ""}!',
+            ephemeral=True,
+        )
+
+    @bulk.command(name='all')
+    async def bulk_all(
+        self, interaction: discord.Interaction
+    ):
+        """
+        Add all your countryballs to a battle.
+        """
+        player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+        balls = await BallInstance.filter(player=player)
+
+        count = 0
+        async for dupe in self.add_balls(interaction, balls):
+            if not dupe:
+                count += 1
+
+        await interaction.response.send_message(
+            f'Added {count} ball{"s" if count != 1 else ""}!',
+            ephemeral=True,
+        )
+
+    @bulk.command(name='clear')
+    async def bulk_remove(
+        self, interaction: discord.Interaction
+    ):
+        """
+        Remove all your countryballs from a battle.
+        """
+        player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+        balls = await BallInstance.filter(player=player)
+
+        count = 0
+        async for not_in_battle in self.remove_balls(interaction, balls):
+            if not not_in_battle:
+                count += 1
+
+        await interaction.response.send_message(
+            f'Removed {count} ball{"s" if count != 1 else ""}!',
+            ephemeral=True,
+        )
+
+    @bulk.command(name='remove')
+    async def bulk_remove(
+        self, interaction: discord.Interaction, countryball: BallTransform
+    ):
+        """
+        Remove countryballs from a battle in bulk.
+        """
+        player, _ = await Player.get_or_create(discord_id=interaction.user.id)
+        balls = await countryball.ballinstances.filter(player=player)
+
+        count = 0
+        async for not_in_battle in self.remove_balls(interaction, balls):
+            if not not_in_battle:
+                count += 1
+
+        await interaction.response.send_message(
+            f'Removed {count} {countryball.country}{"s" if count != 1 else ""}!',
+            ephemeral=True,
+        )

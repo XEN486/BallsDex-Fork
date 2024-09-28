@@ -123,13 +123,14 @@ class Merge(commands.GroupCog):
         ability = gen_ability_name(ball1.countryball.capacity_name, ball2.countryball.capacity_name)
         desc = gen_ability_desc(ball1.countryball.capacity_description, ball2.countryball.capacity_description)
 
-        ball1.countryball.short_name = name
-        ball1.countryball.health = health
-        ball1.countryball.attack = attack
-        ball1.countryball.capacity_name = ability
-        ball1.countryball.capacity_description = desc
+        newball = ball1
+        newball.countryball.short_name = name
+        newball.countryball.health = health
+        newball.countryball.attack = attack
+        newball.countryball.capacity_name = ability
+        newball.countryball.capacity_description = desc
 
-        card = draw_card(ball1)
+        card = draw_card(newball)
 
         with io.BytesIO() as image_binary:
             card.save(image_binary, 'PNG')

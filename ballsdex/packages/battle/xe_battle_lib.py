@@ -41,14 +41,11 @@ def attack(current_ball, enemy_balls):
     return gen_text
 
 
-def random_events(p1_ball, p2_ball):
-    if random.randint(0, 100) <= 30:
-        return (
-            True,
-            f"{p1_ball.owner}'s {p1_ball.name} has dodged the attack of {p2_ball.owner}'s {p2_ball.name}",
-        )
+def random_events():
+    if random.randint(0, 100) <= 30: # miss
+        return 1
     else:
-        return False, ""
+        return 0
 
 
 def gen_battle(battle: BattleInstance):
@@ -68,21 +65,23 @@ def gen_battle(battle: BattleInstance):
             if not p1_ball.dead:
                 turn += 1
 
-                event = random_events(p1_ball, p2_ball)
-                if event[0]:
-                    yield f"Turn {turn}: {p2_ball.owner}'s {p2_ball.name} missed dealing {get_damage(p2_ball)} damage to {p1_ball.owner}'s {p1_ball.name}"
-                    turn += 1
-                    yield f"Turn {turn}: {event[1]}"
+                event = random_events()
+                if event == 1:
+                    yield f"Turn {turn}: {p1_ball.owner}'s {p1_ball.name} missed {p2_ball.owner}'s {p2_ball.name}"
                     continue
                 yield f"Turn {turn}: {attack(p1_ball, battle.p2_balls)}"
 
                 if all(ball.dead for ball in battle.p2_balls):
                     break
             # Player 2 attacks
-
+            
             if not p2_ball.dead:
                 turn += 1
 
+                event = random_events()
+                if event == 1:
+                    yield f"Turn {turn}: {p2_ball.owner}'s {p2_ball.name} missed {p1_ball.owner}'s {p1_ball.name}"
+                    continue
                 yield f"Turn {turn}: {attack(p2_ball, battle.p1_balls)}"
 
                 if all(ball.dead for ball in battle.p1_balls):
