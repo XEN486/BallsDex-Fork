@@ -56,7 +56,7 @@ def gen_deck(balls) -> str:
     )
     if len(deck) > 1024:
         return deck[0:951] + '\n<truncated due to discord limits, the rest of your balls are still here>'
-
+    return deck
 
 def update_embed(
     author_balls, opponent_balls, author, opponent, author_ready, opponent_ready
