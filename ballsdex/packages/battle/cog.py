@@ -63,8 +63,12 @@ def update_embed(
 ) -> discord.Embed:
     """Creates an embed for the battle setup phase."""
     embed = discord.Embed(
-        title="Countryballs Battle Plan",
-        description="Add or remove countryballs you want to propose to the other player using the '/battle add' and '/battle remove' commands. Once you've finished, click the tick button to start the battle.",
+        title=f"{settings.plural_collectible_name.title()} Battle Plan",
+        description=(
+            f"Add or remove {settings.plural_collectible_name} you want to propose to the other player using the "
+            "'/battle add' and '/battle remove' commands. Once you've finished, "
+            "click the tick button to start the battle."
+        ),
         color=discord.Colour.blurple(),
     )
 
@@ -134,14 +138,14 @@ class Battle(commands.GroupCog):
         if guild_battle.author_ready and guild_battle.opponent_ready:
             if not (guild_battle.battle.p1_balls and guild_battle.battle.p2_balls):
                 await interaction.response.send_message(
-                    "Both players must add countryballs!"
+                    f"Both players must add {settings.plural_collectible_name}!"
                 )
                 return
             new_view = create_disabled_buttons()
             battle_log = "\n".join(gen_battle(guild_battle.battle))
 
             embed = discord.Embed(
-                title="Countryballs Battle Plan",
+                title=f"{settings.plural_collectible_name.title()} Battle Plan",
                 description=f"Battle between {guild_battle.author.mention} and {guild_battle.opponent.mention}",
                 color=discord.Color.green(),
             )
@@ -189,8 +193,12 @@ class Battle(commands.GroupCog):
             )
 
             embed = discord.Embed(
-                title="Countryballs Battle Plan",
-                description="Add or remove countryballs you want to propose to the other player using the '/battle add' and '/battle remove' commands. Once you've finished, click the tick button to start the battle.",
+                title=f"{settings.plural_collectible_name.title()} Battle Plan",
+                description=(
+                    f"Add or remove {settings.plural_collectible_name} you want to propose to the other player using the "
+                    "'/battle add' and '/battle remove' commands. Once you've finished, "
+                    "click the tick button to start the battle."
+                ),
                 color=discord.Colour.blurple(),
             )
 
@@ -214,7 +222,7 @@ class Battle(commands.GroupCog):
 
         if guild_battle:
             embed = discord.Embed(
-                title="Countryballs Battle Plan",
+                title=f"{settings.plural_collectible_name.title()} Battle Plan",
                 description="The battle has been cancelled.",
                 color=discord.Color.red(),
             )
@@ -286,7 +294,7 @@ class Battle(commands.GroupCog):
             interaction.user == guild_battle.opponent and guild_battle.opponent_ready
         ):
             await interaction.response.send_message(
-                "You cannot change your balls as you are already ready.", ephemeral=True
+                f"You cannot change your {settings.plural_collectible_name} as you are already ready.", ephemeral=True
             )
             return
         # Check if user is one of the participants
@@ -412,11 +420,11 @@ class Battle(commands.GroupCog):
                 return
 
         # Construct the message
-        attack_sign = "+" if countryball.attack_bonus >= 0 else ""
-        health_sign = "+" if countryball.health_bonus >= 0 else ""
+        attack = "{:+}".format(countryball.attack_bonus)
+        health = "{:+}".format(countryball.health_bonus)
 
         await interaction.response.send_message(
-            f"Added `#{countryball.id} {countryball.countryball.country} ({attack_sign}{countryball.attack_bonus}%/{health_sign}{countryball.health_bonus}%)`!",
+            f"Added `#{countryball.id} {countryball.countryball.country} ({attack}%/{health}%)`!",
             ephemeral=True,
         )
 
@@ -431,15 +439,15 @@ class Battle(commands.GroupCog):
         async for not_in_battle in self.remove_balls(interaction, [countryball]):
             if not_in_battle:
                 await interaction.response.send_message(
-                    "You cannot remove a ball that is not in your deck!", ephemeral=True
+                    f"You cannot remove a {settings.collectible_name} that is not in your deck!", ephemeral=True
                 )
                 return
 
-        attack_sign = "+" if countryball.attack_bonus >= 0 else ""
-        health_sign = "+" if countryball.health_bonus >= 0 else ""
+        attack = "{:+}".format(countryball.attack_bonus)
+        health = "{:+}".format(countryball.health_bonus)
 
         await interaction.response.send_message(
-            f"Removed `#{countryball.id} {countryball.countryball.country} ({attack_sign}{countryball.attack_bonus}%/{health_sign}{countryball.health_bonus}%)`!",
+            f"Removed `#{countryball.id} {countryball.countryball.country} ({attack}%/{health}%)`!",
             ephemeral=True,
         )
     
@@ -478,10 +486,9 @@ class Battle(commands.GroupCog):
             if not dupe:
                 count += 1
 
-        await interaction.response.send_message(
-            f'Added {count} ball{"s" if count != 1 else ""}!',
-            ephemeral=True,
-        )
+        name = settings.plural_collectible_name if count != 1 else settings.collectible_name
+
+        await interaction.response.send_message(f"Added {count} {name}!", ephemeral=True)
 
     @bulk.command(name='clear')
     async def bulk_remove(
@@ -498,10 +505,9 @@ class Battle(commands.GroupCog):
             if not not_in_battle:
                 count += 1
 
-        await interaction.response.send_message(
-            f'Removed {count} ball{"s" if count != 1 else ""}!',
-            ephemeral=True,
-        )
+        name = settings.plural_collectible_name if count != 1 else settings.collectible_name
+
+        await interaction.response.send_message(f"Removed {count} {name}!", ephemeral=True)
 
     @bulk.command(name='remove')
     async def bulk_remove(
