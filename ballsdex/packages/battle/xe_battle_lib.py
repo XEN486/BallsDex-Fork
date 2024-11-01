@@ -51,7 +51,17 @@ def random_events():
 def gen_battle(battle: BattleInstance):
     turn = 0  # Initialize turn counter
 
-    # Continue the battle as long as both players have at least one alive ball
+    # Continue the battle if both players have at least one alive ball.
+    # End the battle if all balls do less than 1 damage.
+
+    if all(
+        ball.attack <= 0 for ball in battle.p1_balls + battle.p2_balls
+    ):
+        yield (
+            "Everyone stared at each other, "
+            "resulting in nobody winning."
+        )
+        return
 
     while any(ball for ball in battle.p1_balls if not ball.dead) and any(
         ball for ball in battle.p2_balls if not ball.dead
