@@ -220,6 +220,12 @@ class Battle(commands.GroupCog):
     async def cancel_battle(self, interaction: discord.Interaction):
         guild_battle = self.battles.get(interaction.guild_id)
 
+        if interaction.user not in (guild_battle.author, guild_battle.opponent):
+            await interaction.response.send_message(
+                "You aren't a part of this battle!", ephemeral=True
+            )
+            return
+
         if guild_battle:
             embed = discord.Embed(
                 title=f"{settings.plural_collectible_name.title()} Battle Plan",
