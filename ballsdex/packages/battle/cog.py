@@ -358,7 +358,7 @@ class Battle(commands.GroupCog):
 
         # Update the battle embed for both players
 
-        await self.interactions[interaction.guild_id].edit_original_response(
+        await guild_battle.interaction.edit_original_response(
             embed=update_embed(
                 guild_battle.battle.p1_balls,
                 guild_battle.battle.p2_balls,
@@ -415,7 +415,7 @@ class Battle(commands.GroupCog):
 
         # Update the battle embed for both players
 
-        await self.interactions[interaction.guild_id].edit_original_response(
+        await guild_battle.interaction.edit_original_response(
             embed=update_embed(
                 guild_battle.battle.p1_balls,
                 guild_battle.battle.p2_balls,
