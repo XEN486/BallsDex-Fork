@@ -32,16 +32,22 @@ from ballsdex.packages.battle.xe_battle_lib import (
 
 if TYPE_CHECKING:
     from ballsdex.core.bot import BallsDexBot
+
 log = logging.getLogger("ballsdex.packages.battle")
 
+battles = []
 
 @dataclass
 class GuildBattle:
+    interaction: discord.Interaction
+
     author: discord.Member
     opponent: discord.Member
-    author_ready: bool = False
-    opponent_ready: bool = False
-    battle: BattleInstance = field(default_factory=BattleInstance)
+    
+    author_ready = False
+    opponent_ready = False
+
+    battle = field(default_factory=BattleInstance)
 
 
 def gen_deck(balls) -> str:
@@ -103,6 +109,29 @@ def create_disabled_buttons() -> discord.ui.View:
     )
 
 
+def fetch_battle(interaction: discord.Interaction):
+    """
+    Fetches a battle based on the interaction's guild ID and author/opponent's ID.
+
+    Parameters
+    ----------
+    interaction: discord.Interaction
+        The interaction you want to fetch the battle based on.
+    """
+    found_battle = None
+
+    for battle in battles:
+        if battle.interaction.guild_id != interaction.guild_id or interaction.user not in (
+            battle.author, battle.opponent
+        ):
+            continue
+
+        found_battle = battle
+        break
+
+    return found_battle
+
+
 class Battle(commands.GroupCog):
     """
     Battle your countryballs!
@@ -110,23 +139,20 @@ class Battle(commands.GroupCog):
 
     def __init__(self, bot: "BallsDexBot"):
         self.bot = bot
-        self.battles: Dict[int, GuildBattle] = {}
-        self.interactions: Dict[int, discord.Interaction] = {}
 
     bulk = app_commands.Group(
         name='bulk', description='Bulk commands for battle'
     )
 
     async def start_battle(self, interaction: discord.Interaction):
-        guild_battle = self.battles.get(interaction.guild_id)
-        if not guild_battle or interaction.user not in (
-            guild_battle.author,
-            guild_battle.opponent,
-        ):
+        guild_battle = fetch_battle(interaction)
+
+        if guild_battle is None:
             await interaction.response.send_message(
                 "You aren't a part of this battle.", ephemeral=True
             )
             return
+        
         # Set the player's readiness status
 
         if interaction.user == guild_battle.author:
@@ -175,7 +201,7 @@ class Battle(commands.GroupCog):
                     discord.File(io.StringIO(battle_log), filename="battle-log.txt")
                 ],
             )
-            self.battles[interaction.guild_id] = None
+            battles.pop(battles.index(guild_battle))
         else:
             # One player is ready, waiting for the other player
 
@@ -213,57 +239,54 @@ class Battle(commands.GroupCog):
                 inline=True,
             )
 
-            await self.interactions[interaction.guild_id].edit_original_response(
-                embed=embed
-            )
+            await guild_battle.interaction.edit_original_response(embed=embed)
 
     async def cancel_battle(self, interaction: discord.Interaction):
-        guild_battle = self.battles.get(interaction.guild_id)
+        guild_battle = fetch_battle(interaction)
 
-        if interaction.user not in (guild_battle.author, guild_battle.opponent):
+        if guild_battle is None:
             await interaction.response.send_message(
                 "You aren't a part of this battle!", ephemeral=True
             )
             return
 
-        if guild_battle:
-            embed = discord.Embed(
-                title=f"{settings.plural_collectible_name.title()} Battle Plan",
-                description="The battle has been cancelled.",
-                color=discord.Color.red(),
-            )
-            embed.add_field(
-                name=f":no_entry_sign: {guild_battle.author}'s deck:",
-                value=gen_deck(guild_battle.battle.p1_balls),
-                inline=True,
-            )
-            embed.add_field(
-                name=f":no_entry_sign: {guild_battle.opponent}'s deck:",
-                value=gen_deck(guild_battle.battle.p2_balls),
-                inline=True,
-            )
+        embed = discord.Embed(
+            title=f"{settings.plural_collectible_name.title()} Battle Plan",
+            description="The battle has been cancelled.",
+            color=discord.Color.red(),
+        )
+        embed.add_field(
+            name=f":no_entry_sign: {guild_battle.author}'s deck:",
+            value=gen_deck(guild_battle.battle.p1_balls),
+            inline=True,
+        )
+        embed.add_field(
+            name=f":no_entry_sign: {guild_battle.opponent}'s deck:",
+            value=gen_deck(guild_battle.battle.p2_balls),
+            inline=True,
+        )
 
-            try:
-                await interaction.response.defer()
-            except discord.errors.InteractionResponded:
-                pass
-            await interaction.message.edit(embed=embed, view=create_disabled_buttons())
-            self.battles[interaction.guild_id] = None
+        try:
+            await interaction.response.defer()
+        except discord.errors.InteractionResponded:
+            pass
+
+        await interaction.message.edit(embed=embed, view=create_disabled_buttons())
+        battles.pop(battles.index(guild_battle))
 
     @app_commands.command()
     async def start(self, interaction: discord.Interaction, opponent: discord.Member):
         """
         Start a battle with a chosen user.
         """
-        if self.battles.get(interaction.guild_id):
+        if fetch_battle(interaction) is not None:
             await interaction.response.send_message(
-                "You cannot create a new battle right now, as one is already ongoing in this server.",
-                ephemeral=True,
+                "You are already in a battle.", ephemeral=True,
             )
             return
-        self.battles[interaction.guild_id] = GuildBattle(
-            author=interaction.user, opponent=opponent
-        )
+        
+        battles.append(GuildBattle(interaction, interaction.user, opponent))
+
         embed = update_embed([], [], interaction.user.name, opponent.name, False, False)
 
         start_button = discord.ui.Button(
@@ -279,6 +302,7 @@ class Battle(commands.GroupCog):
         cancel_button.callback = self.cancel_battle
 
         view = discord.ui.View(timeout=None)
+
         view.add_item(start_button)
         view.add_item(cancel_button)
 
@@ -288,11 +312,13 @@ class Battle(commands.GroupCog):
             view=view,
         )
 
-        self.interactions[interaction.guild_id] = interaction
-
     async def add_balls(self, interaction: discord.Interaction, countryballs):
-        guild_battle = self.battles.get(interaction.guild_id)
-        if not guild_battle:
+        guild_battle = fetch_battle(interaction)
+
+        if guild_battle is None:
+            await interaction.response.send_message(
+                "You aren't a part of a battle!", ephemeral=True
+            )
             return
         # Check if the user is already ready
 
@@ -301,13 +327,6 @@ class Battle(commands.GroupCog):
         ):
             await interaction.response.send_message(
                 f"You cannot change your {settings.plural_collectible_name} as you are already ready.", ephemeral=True
-            )
-            return
-        # Check if user is one of the participants
-
-        if interaction.user not in (guild_battle.author, guild_battle.opponent):
-            await interaction.response.send_message(
-                "You aren't a part of this battle!", ephemeral=True
             )
             return
         # Determine if the user is the author or opponent and get the appropriate ball list
@@ -351,8 +370,12 @@ class Battle(commands.GroupCog):
         )
 
     async def remove_balls(self, interaction: discord.Interaction, countryballs):
-        guild_battle = self.battles.get(interaction.guild_id)
-        if not guild_battle:
+        guild_battle = fetch_battle(interaction)
+
+        if guild_battle is None:
+            await interaction.response.send_message(
+                "You aren't a part of a battle!", ephemeral=True
+            )
             return
         # Check if the user is already ready
 
@@ -361,13 +384,6 @@ class Battle(commands.GroupCog):
         ):
             await interaction.response.send_message(
                 "You cannot change your balls as you are already ready.", ephemeral=True
-            )
-            return
-        # Check if user is one of the participants
-
-        if interaction.user not in (guild_battle.author, guild_battle.opponent):
-            await interaction.response.send_message(
-                "You aren't a part of this battle!", ephemeral=True
             )
             return
         # Determine if the user is the author or opponent and get the appropriate ball list
