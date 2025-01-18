@@ -275,8 +275,25 @@ class Battle(commands.GroupCog):
     @app_commands.command()
     async def start(self, interaction: discord.Interaction, opponent: discord.Member):
         """
-        Start a battle with a chosen user.
+        Starts a battle with a chosen user.
+
+        Parameters
+        ----------
+        opponent: discord.Member
+            The user you want to battle.
         """
+        if opponent.user.bot:
+            await interaction.response.send_message(
+                "You can't battle against bots.", ephemeral=True,
+            )
+            return
+        
+        if opponent.user == interaction.user:
+            await interaction.response.send_message(
+                "You can't battle against yourself.", ephemeral=True,
+            )
+            return
+
         if fetch_battle(opponent) is not None:
             await interaction.response.send_message(
                 "That user is already in a battle.", ephemeral=True,
@@ -449,9 +466,13 @@ class Battle(commands.GroupCog):
         self, interaction: discord.Interaction, countryball: BallInstanceTransform
     ):
         """
-        Add a countryball to a battle.
+        Adds a countryball to a battle.
+
+        Parameters
+        ----------
+        countryball: Ball
+            The countryball you want to add.
         """
-        
         async for dupe in self.add_balls(interaction, [countryball]):
             if dupe:
                 await interaction.response.send_message(
@@ -473,9 +494,13 @@ class Battle(commands.GroupCog):
         self, interaction: discord.Interaction, countryball: BallInstanceTransform
     ):
         """
-        Remove a countryball from battle.
-        """
+        Removes a countryball from battle.
 
+        Parameters
+        ----------
+        countryball: Ball
+            The countryball you want to remove.
+        """
         async for not_in_battle in self.remove_balls(interaction, [countryball]):
             if not_in_battle:
                 await interaction.response.send_message(
@@ -491,12 +516,17 @@ class Battle(commands.GroupCog):
             ephemeral=True,
         )
     
-    @bulk.command(name='add')
+    @bulk.command(name="add")
     async def bulk_add(
         self, interaction: discord.Interaction, countryball: BallTransform
     ):
         """
-        Add countryballs to a battle in bulk.
+        Adds countryballs to a battle in bulk.
+
+        Parameters
+        ----------
+        countryball: Ball
+            The countryball you want to add.
         """
         player, _ = await Player.get_or_create(discord_id=interaction.user.id)
         balls = await countryball.ballinstances.filter(player=player)
@@ -511,12 +541,12 @@ class Battle(commands.GroupCog):
             ephemeral=True,
         )
 
-    @bulk.command(name='all')
+    @bulk.command(name="all")
     async def bulk_all(
         self, interaction: discord.Interaction
     ):
         """
-        Add all your countryballs to a battle.
+        Adds all your countryballs to a battle.
         """
         player, _ = await Player.get_or_create(discord_id=interaction.user.id)
         balls = await BallInstance.filter(player=player)
@@ -530,12 +560,12 @@ class Battle(commands.GroupCog):
 
         await interaction.response.send_message(f"Added {count} {name}!", ephemeral=True)
 
-    @bulk.command(name='clear')
+    @bulk.command(name="clear")
     async def bulk_remove(
         self, interaction: discord.Interaction
     ):
         """
-        Remove all your countryballs from a battle.
+        Removes all your countryballs from a battle.
         """
         player, _ = await Player.get_or_create(discord_id=interaction.user.id)
         balls = await BallInstance.filter(player=player)
@@ -549,12 +579,17 @@ class Battle(commands.GroupCog):
 
         await interaction.response.send_message(f"Removed {count} {name}!", ephemeral=True)
 
-    @bulk.command(name='remove')
+    @bulk.command(name="remove")
     async def bulk_remove(
         self, interaction: discord.Interaction, countryball: BallTransform
     ):
         """
-        Remove countryballs from a battle in bulk.
+        Removes countryballs from a battle in bulk.
+
+        Parameters
+        ----------
+        countryball: Ball
+            The countryball you want to remove.
         """
         player, _ = await Player.get_or_create(discord_id=interaction.user.id)
         balls = await countryball.ballinstances.filter(player=player)
