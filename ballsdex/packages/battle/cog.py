@@ -109,21 +109,19 @@ def create_disabled_buttons() -> discord.ui.View:
     )
 
 
-def fetch_battle(interaction: discord.Interaction):
+def fetch_battle(user: discord.User | discord.Member):
     """
-    Fetches a battle based on the interaction's guild ID and author/opponent's ID.
+    Fetches a battle based on the user provided.
 
     Parameters
     ----------
-    interaction: discord.Interaction
-        The interaction you want to fetch the battle based on.
+    user: discord.User | discord.Member
+        The user you want to fetch the battle from.
     """
     found_battle = None
 
     for battle in battles:
-        if battle.interaction.guild_id != interaction.guild_id or interaction.user not in (
-            battle.author, battle.opponent
-        ):
+        if user not in (battle.author, battle.opponent):
             continue
 
         found_battle = battle
@@ -145,7 +143,7 @@ class Battle(commands.GroupCog):
     )
 
     async def start_battle(self, interaction: discord.Interaction):
-        guild_battle = fetch_battle(interaction)
+        guild_battle = fetch_battle(interaction.user)
 
         if guild_battle is None:
             await interaction.response.send_message(
@@ -242,7 +240,7 @@ class Battle(commands.GroupCog):
             await guild_battle.interaction.edit_original_response(embed=embed)
 
     async def cancel_battle(self, interaction: discord.Interaction):
-        guild_battle = fetch_battle(interaction)
+        guild_battle = fetch_battle(interaction.user)
 
         if guild_battle is None:
             await interaction.response.send_message(
@@ -279,7 +277,13 @@ class Battle(commands.GroupCog):
         """
         Start a battle with a chosen user.
         """
-        if fetch_battle(interaction) is not None:
+        if fetch_battle(opponent) is not None:
+            await interaction.response.send_message(
+                "That user is already in a battle.", ephemeral=True,
+            )
+            return
+
+        if fetch_battle(interaction.user) is not None:
             await interaction.response.send_message(
                 "You are already in a battle.", ephemeral=True,
             )
@@ -313,13 +317,20 @@ class Battle(commands.GroupCog):
         )
 
     async def add_balls(self, interaction: discord.Interaction, countryballs):
-        guild_battle = fetch_battle(interaction)
+        guild_battle = fetch_battle(interaction.user)
 
         if guild_battle is None:
             await interaction.response.send_message(
                 "You aren't a part of a battle!", ephemeral=True
             )
             return
+        
+        if interaction.guild_id != guild_battle.interaction.guild_id:
+            await interaction.response.send_message(
+                "You must be in the same server as your battle to use commands.", ephemeral=True
+            )
+            return
+
         # Check if the user is already ready
 
         if (interaction.user == guild_battle.author and guild_battle.author_ready) or (
@@ -370,13 +381,20 @@ class Battle(commands.GroupCog):
         )
 
     async def remove_balls(self, interaction: discord.Interaction, countryballs):
-        guild_battle = fetch_battle(interaction)
+        guild_battle = fetch_battle(interaction.user)
 
         if guild_battle is None:
             await interaction.response.send_message(
                 "You aren't a part of a battle!", ephemeral=True
             )
             return
+        
+        if interaction.guild_id != guild_battle.interaction.guild_id:
+            await interaction.response.send_message(
+                "You must be in the same server as your battle to use commands.", ephemeral=True
+            )
+            return
+
         # Check if the user is already ready
 
         if (interaction.user == guild_battle.author and guild_battle.author_ready) or (
