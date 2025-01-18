@@ -43,11 +43,11 @@ class GuildBattle:
 
     author: discord.Member
     opponent: discord.Member
-    
-    author_ready = False
-    opponent_ready = False
 
-    battle = field(default_factory=BattleInstance)
+    author_ready: bool = False
+    opponent_ready: bool = False
+
+    battle: BattleInstance = field(default_factory=BattleInstance)
 
 
 def gen_deck(balls) -> str:
