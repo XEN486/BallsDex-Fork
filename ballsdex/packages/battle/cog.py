@@ -282,13 +282,13 @@ class Battle(commands.GroupCog):
         opponent: discord.Member
             The user you want to battle.
         """
-        if opponent.user.bot:
+        if opponent.bot:
             await interaction.response.send_message(
                 "You can't battle against bots.", ephemeral=True,
             )
             return
         
-        if opponent.user == interaction.user:
+        if opponent.id == interaction.user.id:
             await interaction.response.send_message(
                 "You can't battle against yourself.", ephemeral=True,
             )
