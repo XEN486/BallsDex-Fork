@@ -21,7 +21,7 @@ from ballsdex.settings import settings
 
 from ballsdex.core.utils.transformers import (
     BallInstanceTransform,
-    BallTransform
+    BallEnabledTransform
 )
 
 from ballsdex.packages.battle.xe_battle_lib import (
@@ -518,7 +518,7 @@ class Battle(commands.GroupCog):
     
     @bulk.command(name="add")
     async def bulk_add(
-        self, interaction: discord.Interaction, countryball: BallTransform
+        self, interaction: discord.Interaction, countryball: BallEnabledTransform
     ):
         """
         Adds countryballs to a battle in bulk.
@@ -581,7 +581,7 @@ class Battle(commands.GroupCog):
 
     @bulk.command(name="remove")
     async def bulk_remove(
-        self, interaction: discord.Interaction, countryball: BallTransform
+        self, interaction: discord.Interaction, countryball: BallEnabledTransform
     ):
         """
         Removes countryballs from a battle in bulk.
